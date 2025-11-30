@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.compow.ComPowApplication
+import com.example.compow.network.SocketIOManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -105,7 +106,7 @@ fun LoginPage(navController: NavController) {
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Login Button - USES: getUserByEmail()
+            // Login Button
             Button(
                 onClick = {
                     scope.launch {
@@ -118,13 +119,10 @@ fun LoginPage(navController: NavController) {
                             }
                             else -> {
                                 withContext(Dispatchers.IO) {
-                                    // Get user by email - USES getUserByEmail()
+                                    // Get user by email
                                     val user = userDao.getUserByEmail(email)
 
                                     if (user != null) {
-                                        // In production, verify password hash
-                                        // For now, just check if user exists
-
                                         // Save login state
                                         val prefs = context.getSharedPreferences("compow_prefs", Context.MODE_PRIVATE)
                                         prefs.edit().apply {
@@ -137,6 +135,20 @@ fun LoginPage(navController: NavController) {
                                         }
 
                                         withContext(Dispatchers.Main) {
+                                            // Initialize Socket.IO connection
+                                            val socketManager = SocketIOManager.getInstance()
+                                            socketManager.connect()
+
+                                            // Wait for connection then set user online
+                                            scope.launch {
+                                                socketManager.isConnected.collect { connected ->
+                                                    if (connected) {
+                                                        socketManager.joinUserRoom(user.userId)
+                                                        socketManager.setUserOnline(user.userId, user.fullName)
+                                                    }
+                                                }
+                                            }
+
                                             navController.navigate("home") {
                                                 popUpTo("first") { inclusive = true }
                                             }

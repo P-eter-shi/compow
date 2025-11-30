@@ -1,6 +1,7 @@
 package com.example.compow.screens
 
 import android.content.Context
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -26,7 +27,7 @@ import kotlinx.coroutines.withContext
 import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Suppress("DEPRECATION") // Suppressing for menuAnchor until IDE syncs properly
+@Suppress("DEPRECATION")
 @Composable
 fun SignupPage(navController: NavController) {
     val context = LocalContext.current
@@ -228,65 +229,64 @@ fun SignupPage(navController: NavController) {
                     scope.launch {
                         isLoading = true
                         var success = false
-                        
-                        // Validation
-                        when {
-                            fullName.isBlank() || email.isBlank() || password.isBlank() || yearOfStudy.isBlank() || courseOfStudy.isBlank() -> {
-                                errorMessage = "Please fill all fields"
-                                showError = true
-                            }
 
-                            password.length < 6 -> {
-                                errorMessage = "Password must be at least 6 characters"
-                                showError = true
-                            }
+                        // Validation and Local Database Logic
+                        withContext(Dispatchers.IO) {
+                            when {
+                                fullName.isBlank() || email.isBlank() || password.isBlank() || yearOfStudy.isBlank() || courseOfStudy.isBlank() -> {
+                                    errorMessage = "Please fill all fields"
+                                    showError = true
+                                }
+                                password.length < 6 -> {
+                                    errorMessage = "Password must be at least 6 characters"
+                                    showError = true
+                                }
+                                !email.endsWith("@student.ac.ke") -> {
+                                    errorMessage = "Please use a valid student email"
+                                    showError = true
+                                }
+                                phoneNumber.length < 13 -> {
+                                    errorMessage = "Invalid phone number"
+                                    showError = true
+                                }
+                                userDao.isEmailExists(email) -> {
+                                    errorMessage = "Email already registered"
+                                    showError = true
+                                }
+                                userDao.isPhoneNumberExists(phoneNumber) -> {
+                                    errorMessage = "Phone number already registered"
+                                    showError = true
+                                }
+                                else -> {
+                                    val userId = UUID.randomUUID().toString()
+                                    val user = UserEntity(
+                                        userId = userId,
+                                        fullName = fullName,
+                                        email = email,
+                                        phoneNumber = phoneNumber,
+                                        yearOfStudy = yearOfStudy.toIntOrNull() ?: 1,
+                                        courseOfStudy = courseOfStudy
+                                    )
+                                    userDao.insertUser(user)
 
-                            !email.endsWith("@student.ac.ke") -> { // Example validation
-                                errorMessage = "Please use a valid student email"
-                                showError = true
-                            }
-
-                            phoneNumber.length < 13 -> {
-                                errorMessage = "Invalid phone number"
-                                showError = true
-                            }
-
-                            else -> {
-                                withContext(Dispatchers.IO) {
-                                    if (userDao.isEmailExists(email)) {
-                                        errorMessage = "Email already registered"
-                                        showError = true
-                                    } else if (userDao.isPhoneNumberExists(phoneNumber)) {
-                                        errorMessage = "Phone number already registered"
-                                        showError = true
-                                    } else {
-                                        val userId = UUID.randomUUID().toString()
-                                        val user = UserEntity(
-                                            userId = userId,
-                                            fullName = fullName,
-                                            email = email,
-                                            phoneNumber = phoneNumber,
-                                            yearOfStudy = yearOfStudy.toIntOrNull() ?: 1,
-                                            courseOfStudy = courseOfStudy
-                                        )
-
-                                        userDao.insertUser(user)
-
-                                        // Use commit=true for a synchronous, guaranteed write
-                                        context.getSharedPreferences("compow_prefs", Context.MODE_PRIVATE).edit(commit = true) {
-                                            putString("user_id", userId)
-                                            putString("user_name", fullName)
-                                            putBoolean("is_logged_in", true)
-                                        }
-                                        success = true
+                                    // This write is now guaranteed to complete before proceeding.
+                                    context.getSharedPreferences("compow_prefs", Context.MODE_PRIVATE).edit(commit = true) {
+                                        putString("user_id", userId)
+                                        putString("user_name", fullName)
+                                        putBoolean("is_logged_in", true)
                                     }
+                                    success = true
                                 }
                             }
                         }
 
+                        // Navigate immediately after successful local signup.
+                        // MainActivity will handle the socket connection.
                         if (success) {
-                            navController.navigate("home") {
-                                popUpTo("first") { inclusive = true }
+                            withContext(Dispatchers.Main) {
+                                navController.navigate("home") {
+                                    popUpTo("first") { inclusive = true }
+                                }
                             }
                         }
                         isLoading = false

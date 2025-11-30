@@ -107,7 +107,7 @@ fun HomePage(navController: NavController) {
                     nearbyPoliceStations = cachedResults.policeStations
                 } else {
                     userLocation?.let {
-                        val (hospitals, police) = placesHelper.findNearbyPlaces(it)
+                        val (hospitals, police) = placesHelper.findNearbyPlaces()
                         nearbyHospitals = hospitals
                         nearbyPoliceStations = police
                         poiCacheManager.cacheResults(location.latitude, location.longitude, hospitals, police)

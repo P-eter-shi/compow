@@ -271,12 +271,13 @@ io.on('connection', (socket) => {
 });
 
 // Start server
-http.listen(PORT, () => {
+http.listen(PORT, '0.0.0.0', () => {
     console.log('\n=================================');
     console.log('🚀 ComPow Socket.IO Server Started');
     console.log('=================================');
     console.log(`📡 Server running on port ${PORT}`);
-    console.log(`🌐 Access at: http://localhost:${PORT}`);
+    console.log(`🌐 Local: http://localhost:${PORT}`);
+    console.log(`🌐 Network: http://YOUR_IP:${PORT}`);
     console.log(`⏰ Started at: ${new Date().toISOString()}`);
     console.log('=================================\n');
 });

@@ -5,7 +5,6 @@ import android.content.Context
 import android.util.Log
 import androidx.annotation.RequiresPermission
 import com.example.compow.data.NearbyPlace
-import com.google.android.gms.maps.model.LatLng
 import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.model.Place
 import com.google.android.libraries.places.api.net.FindCurrentPlaceRequest
@@ -17,8 +16,10 @@ class PlacesHelper(context: Context) {
     private val placesClient: PlacesClient = Places.createClient(context)
 
     @RequiresPermission(Manifest.permission.ACCESS_FINE_LOCATION)
-    suspend fun findNearbyPlaces(location: LatLng): Pair<List<NearbyPlace>, List<NearbyPlace>> {
+    @Suppress("DEPRECATION") // Suppressing because the Places SDK properties are marked deprecated
+    suspend fun findNearbyPlaces(): Pair<List<NearbyPlace>, List<NearbyPlace>> {
         val placeFields = listOf(Place.Field.ID, Place.Field.NAME, Place.Field.ADDRESS, Place.Field.LAT_LNG, Place.Field.TYPES, Place.Field.OPENING_HOURS)
+        // The request uses the device's current location. The location parameter was unused.
         val request = FindCurrentPlaceRequest.newInstance(placeFields)
 
         return try {
@@ -28,7 +29,8 @@ class PlacesHelper(context: Context) {
 
             response.placeLikelihoods.forEach { placeLikelihood ->
                 val place = placeLikelihood.place
-                val placeTypes = place.types ?: emptyList()
+                // Use the new, non-deprecated `placeTypes` which returns a List<String>
+                val placeTypes = place.placeTypes ?: emptyList()
 
                 val nearbyPlace = NearbyPlace(
                     name = place.name ?: "",
@@ -37,13 +39,14 @@ class PlacesHelper(context: Context) {
                     longitude = place.latLng?.longitude ?: 0.0,
                     distance = 0f, // This will be calculated later
                     placeId = place.id ?: "",
-                    types = placeTypes.map { it.name },
+                    types = placeTypes, // Pass the list of strings directly
                     isOpen = place.isOpen ?: false
                 )
 
-                if (placeTypes.contains(Place.Type.HOSPITAL)) {
+                // Check for types using modern string identifiers
+                if (placeTypes.contains("hospital")) {
                     hospitals.add(nearbyPlace)
-                } else if (placeTypes.contains(Place.Type.POLICE)) {
+                } else if (placeTypes.contains("police")) {
                     policeStations.add(nearbyPlace)
                 }
             }

@@ -26,7 +26,7 @@ class SocketIOManager private constructor() {
         private var INSTANCE: SocketIOManager? = null
 
         // IMPORTANT: Replace with with actual server URL
-        private const val SERVER_URL = "http://10.10.44.98:3000"
+        private const val SERVER_URL = "http://10.10.114.154:3000"
 
         const val EVENT_CONNECT = Socket.EVENT_CONNECT
         const val EVENT_DISCONNECT = Socket.EVENT_DISCONNECT
@@ -152,15 +152,18 @@ class SocketIOManager private constructor() {
         }
 
         try {
+            // Create JSONArray for contactIds
+            val contactsArray = JSONArray()
+            contactIds.forEach { contactsArray.put(it) }
+
             val data = JSONObject().apply {
                 put("fromUserId", fromUserId)
                 put("fromUserName", fromUserName)
                 put("message", message)
-                put("latitude", latitude)
-                put("longitude", longitude)
-                put("contactIds", JSONArray(contactIds))
+                put("latitude", latitude ?: 0.0)
+                put("longitude", longitude ?: 0.0)
+                put("contactIds", contactsArray.toString()) // Convert to string for server
                 put("timestamp", System.currentTimeMillis())
-                put("type", "emergency")
             }
 
             socket?.emit(EVENT_EMERGENCY_ALERT, data, io.socket.client.Ack { args ->
@@ -168,8 +171,9 @@ class SocketIOManager private constructor() {
                     if (args.isNotEmpty()) {
                         val response = args[0] as? JSONObject
                         val success = response?.optBoolean("success", false) ?: false
-                        val error = response?.optString("error")
-                        callback(success, error)
+                        val responseMsg = response?.optString("message")
+                        callback(success, responseMsg)
+                        Log.d("SocketIOManager", "📨 Server response: $responseMsg")
                     } else {
                         callback(false, "No response from server")
                     }
