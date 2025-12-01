@@ -20,6 +20,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -124,7 +126,7 @@ fun HomePage(navController: NavController) {
         }
     }
 
-    alarmActive = activeAlert != null && !activeAlert!!.isResolved
+    alarmActive = activeAlert?.isResolved == false
 
     // Permission launcher
     val callPermissionLauncher = rememberLauncherForActivityResult(
@@ -502,124 +504,122 @@ fun MapSection(
         }
     }
 
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(8.dp)
+    Box(
+        modifier = modifier
+            .shadow(8.dp, RoundedCornerShape(16.dp)) // Apply shadow for elevation
+            .clip(RoundedCornerShape(16.dp)) // Clip the map to the rounded shape
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            GoogleMap(
-                modifier = Modifier.fillMaxSize(),
-                cameraPositionState = cameraPositionState,
-                properties = MapProperties(isMyLocationEnabled = false),
-                uiSettings = MapUiSettings(
-                    zoomControlsEnabled = true,
-                    myLocationButtonEnabled = false
+        GoogleMap(
+            modifier = Modifier.fillMaxSize(),
+            cameraPositionState = cameraPositionState,
+            properties = MapProperties(isMyLocationEnabled = false),
+            uiSettings = MapUiSettings(
+                zoomControlsEnabled = true,
+                myLocationButtonEnabled = false
+            )
+        ) {
+            if (userLocation != null) {
+                Marker(
+                    state = rememberMarkerState(position = userLocation),
+                    title = "Your Location",
+                    snippet = locationHelper.formatLocation(Location("").apply { latitude = userLocation.latitude; longitude = userLocation.longitude}),
+                    icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)
                 )
-            ) {
-                if (userLocation != null) {
-                    Marker(
-                        state = rememberMarkerState(position = userLocation),
-                        title = "Your Location",
-                        snippet = locationHelper.formatLocation(Location("").apply { latitude = userLocation.latitude; longitude = userLocation.longitude}),
-                        icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)
-                    )
-                }
-
-                hospitals.forEach { hospital ->
-                    Marker(
-                        state = rememberMarkerState(position = LatLng(hospital.latitude, hospital.longitude)),
-                        title = hospital.name,
-                        snippet = "${hospital.address}",
-                        icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)
-                    )
-                }
-
-                policeStations.forEach { station ->
-                    Marker(
-                        state = rememberMarkerState(position = LatLng(station.latitude, station.longitude)),
-                        title = station.name,
-                        snippet = "${station.address}",
-                        icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN)
-                    )
-                }
             }
 
-            if (isSearching) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .background(Color.White.copy(alpha = 0.9f), RoundedCornerShape(8.dp))
-                        .padding(16.dp)
+            hospitals.forEach { hospital ->
+                Marker(
+                    state = rememberMarkerState(position = LatLng(hospital.latitude, hospital.longitude)),
+                    title = hospital.name,
+                    snippet = hospital.address,
+                    icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)
+                )
+            }
+
+            policeStations.forEach { station ->
+                Marker(
+                    state = rememberMarkerState(position = LatLng(station.latitude, station.longitude)),
+                    title = station.name,
+                    snippet = station.address,
+                    icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN)
+                )
+            }
+        }
+
+        if (isSearching) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .background(Color.White.copy(alpha = 0.9f), RoundedCornerShape(8.dp))
+                    .padding(16.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                    Text("Finding nearby help...", fontSize = 12.sp)
+                }
+            }
+        }
+
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(12.dp)
+        ) {
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = Color.White.copy(alpha = 0.95f)
+                ),
+                elevation = CardDefaults.cardElevation(4.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                        Text("Finding nearby help...", fontSize = 12.sp)
+                        Icon(
+                            Icons.Default.LocationOn,
+                            contentDescription = null,
+                            tint = Color(0xFF2962FF),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            "Emergency Facilities",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
-                }
-            }
 
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(12.dp)
-            ) {
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color.White.copy(alpha = 0.95f)
-                    ),
-                    elevation = CardDefaults.cardElevation(4.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(10.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.LocationOn,
-                                contentDescription = null,
-                                tint = Color(0xFF2962FF),
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Text(
-                                "Emergency Facilities",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+                    Text(locationStatus, fontSize = 10.sp, color = Color.Gray)
 
-                        Text(locationStatus, fontSize = 10.sp, color = Color.Gray)
-
-                        if (!isSearching) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(12.dp)
-                                            .background(Color(0xFF0099FF), CircleShape)
-                                    )
-                                    Text("🏥 ${hospitals.size}", fontSize = 11.sp, fontWeight = FontWeight.Medium)
-                                }
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(12.dp)
-                                            .background(Color(0xFF00FF00), CircleShape)
-                                    )
-                                    Text("🚔 ${policeStations.size}", fontSize = 11.sp, fontWeight = FontWeight.Medium)
-                                }
+                    if (!isSearching) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(12.dp)
+                                        .background(Color(0xFF0099FF), CircleShape)
+                                )
+                                Text("🏥 ${hospitals.size}", fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                            }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(12.dp)
+                                        .background(Color(0xFF00FF00), CircleShape)
+                                )
+                                Text("🚔 ${policeStations.size}", fontSize = 11.sp, fontWeight = FontWeight.Medium)
                             }
                         }
                     }

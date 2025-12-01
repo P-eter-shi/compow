@@ -24,6 +24,12 @@ interface ContactDao {
     @Query("SELECT * FROM contacts ORDER BY created_at DESC")
     suspend fun getAllContacts(): List<ContactEntity>
 
+    @Query("SELECT * FROM contacts WHERE is_enabled = 1")
+    suspend fun getAllEnabledContacts(): List<ContactEntity>
+
+    @Query("SELECT * FROM contacts WHERE phone_number = :phoneNumber AND category = :category LIMIT 1")
+    suspend fun getContactByNumberAndCategory(phoneNumber: String, category: ContactCategory): ContactEntity?
+
     @Query("SELECT * FROM contacts WHERE id = :contactId")
     suspend fun getContactById(contactId: Long): ContactEntity?
 

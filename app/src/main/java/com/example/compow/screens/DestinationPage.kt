@@ -626,7 +626,8 @@ fun ContactListSection(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 120.dp)
+                // Set a specific maximum height for the scrollable list
+                .heightIn(max = 250.dp) // Adjusted max height for scrolling to be visible
                 .border(2.dp, borderColor, RoundedCornerShape(12.dp))
                 .background(Color.White.copy(alpha = 0.8f), RoundedCornerShape(12.dp))
                 .padding(16.dp)
@@ -650,10 +651,12 @@ fun ContactListSection(
                     )
                 }
             } else {
-                Column(
+                // *** REPLACED Column with LazyColumn for scrollable list ***
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    contacts.forEach { contact ->
+                    items(contacts) { contact ->
                         ContactItem(
                             contact = contact,
                             onClick = { onContactClick(contact) },
@@ -754,7 +757,7 @@ fun ContactItem(
                 }
             },
             dismissButton = {
-                TextButton(onClick = onDismiss) {
+                TextButton(onClick = {onDismiss()}) {
                     Text("Cancel")
                 }
             }
