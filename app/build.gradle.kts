@@ -25,7 +25,12 @@ android {
         if (localPropertiesFile.exists()) {
             properties.load(FileInputStream(localPropertiesFile))
         }
-        manifestPlaceholders["MAPS_API_KEY"] = properties.getProperty("MAPS_API_KEY", "")
+        val mapsApiKey = properties.getProperty("MAPS_API_KEY", "")
+        manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
+
+        // Expose API key through BuildConfig
+        buildConfigField("String", "MAPS_API_KEY", "\"$mapsApiKey\"")
+
         vectorDrawables {
             useSupportLibrary = true
         }
@@ -52,6 +57,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     composeOptions {
