@@ -25,8 +25,8 @@ class SocketIOManager private constructor() {
         @Volatile
         private var INSTANCE: SocketIOManager? = null
 
-        // IMPORTANT: Replace with with actual server URL
-        private const val SERVER_URL = "http://10.122.111.51:3000"
+        //server URL
+        private const val SERVER_URL = "http://10.10.44.98:3000"
 
         const val EVENT_CONNECT = Socket.EVENT_CONNECT
         const val EVENT_DISCONNECT = Socket.EVENT_DISCONNECT
@@ -46,14 +46,14 @@ class SocketIOManager private constructor() {
         }
     }
 
-    private val onConnect = Emitter.Listener { 
+    private val onConnect = Emitter.Listener {
         _isConnected.value = true
-        Log.d("SocketIOManager", "✅ Socket connected successfully") 
+        Log.d("SocketIOManager", "✅ Socket connected successfully")
     }
 
-    private val onDisconnect = Emitter.Listener { 
+    private val onDisconnect = Emitter.Listener {
         _isConnected.value = false
-        Log.d("SocketIOManager", "❌ Socket disconnected") 
+        Log.d("SocketIOManager", "❌ Socket disconnected")
     }
 
     private val onConnectError = Emitter.Listener { args ->

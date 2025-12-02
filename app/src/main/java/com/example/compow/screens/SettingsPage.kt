@@ -110,17 +110,27 @@ fun SettingsPage(navController: NavController) {
         uri?.let {
             currentCategoryForAdd?.let { category ->
                 scope.launch {
-                    handleContactSelection(context, uri, contactDao, category) {
-                        scope.launch {
-                            withContext(Dispatchers.IO) {
-                                when (it) {
-                                    ContactCategory.CIRCLE -> circleCount = contactDao.getContactCountByCategory(ContactCategory.CIRCLE)
-                                    ContactCategory.GROUP -> groupCount = contactDao.getContactCountByCategory(ContactCategory.GROUP)
-                                    ContactCategory.COMMUNITY -> communityCount = contactDao.getContactCountByCategory(ContactCategory.COMMUNITY)
+                    handleContactSelection(
+                        context,
+                        uri,
+                        contactDao,
+                        category,
+                        onComplete = { // Success callback
+                            scope.launch {
+                                withContext(Dispatchers.IO) {
+                                    when (it) {
+                                        ContactCategory.CIRCLE -> circleCount = contactDao.getContactCountByCategory(ContactCategory.CIRCLE)
+                                        ContactCategory.GROUP -> groupCount = contactDao.getContactCountByCategory(ContactCategory.GROUP)
+                                        ContactCategory.COMMUNITY -> communityCount = contactDao.getContactCountByCategory(ContactCategory.COMMUNITY)
+                                    }
                                 }
                             }
+                        },
+                        onError = { error -> // Error callback for duplicates
+                            errorMessage = error
+                            showErrorDialog = true
                         }
-                    }
+                    )
                 }
             }
         }
@@ -709,7 +719,8 @@ private suspend fun handleContactSelection(
     uri: Uri,
     contactDao: com.example.compow.data.ContactDao,
     category: ContactCategory,
-    onComplete: (ContactCategory) -> Unit
+    onComplete: (ContactCategory) -> Unit,
+    onError: (String) -> Unit // Added callback for error handling
 ) {
     withContext(Dispatchers.IO) {
         val cursor = context.contentResolver.query(uri, null, null, null, null)
@@ -736,17 +747,28 @@ private suspend fun handleContactSelection(
 
                         phoneNumber = formatPhoneNumber(phoneNumber)
 
-                        val contact = ContactEntity(
-                            name = name,
-                            phoneNumber = phoneNumber,
-                            category = category,
-                            isEnabled = true
-                        )
+                        // *** MODIFICATION START: Check for existing contact by category and number ***
+                        val existingContact = contactDao.getContactByNumberAndCategory(phoneNumber, category)
 
-                        contactDao.insertContact(contact)
-                        withContext(Dispatchers.Main) {
-                            onComplete(category)
+                        if (existingContact == null) {
+                            val contact = ContactEntity(
+                                name = name,
+                                phoneNumber = phoneNumber,
+                                category = category,
+                                isEnabled = true
+                            )
+
+                            contactDao.insertContact(contact)
+                            withContext(Dispatchers.Main) {
+                                onComplete(category)
+                            }
+                        } else {
+                            // Contact already exists in this category
+                            withContext(Dispatchers.Main) {
+                                onError("Contact '$name' with number '$phoneNumber' is already in your $category list.")
+                            }
                         }
+                        // *** MODIFICATION END ***
                     }
                 }
             }

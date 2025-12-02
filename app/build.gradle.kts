@@ -26,14 +26,17 @@ android {
             properties.load(FileInputStream(localPropertiesFile))
         }
         val mapsApiKey = properties.getProperty("MAPS_API_KEY", "")
-        manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
 
-        // Expose API key through BuildConfig
+// FIX: Add this line to expose the key to your Kotlin code (e.g., ComPowApplication.kt)
         buildConfigField("String", "MAPS_API_KEY", "\"$mapsApiKey\"")
+
+// This line exposes the key to the AndroidManifest.xml (This is already correct)
+        manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
 
         vectorDrawables {
             useSupportLibrary = true
         }
+
     }
 
     buildTypes {
