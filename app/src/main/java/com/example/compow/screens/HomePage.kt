@@ -82,6 +82,18 @@ fun HomePage(navController: NavController) {
     var nearbyPoliceStations by remember { mutableStateOf<List<NearbyPlace>>(emptyList()) }
     var isSearching by remember { mutableStateOf(false) }
     var locationStatus by remember { mutableStateOf("Getting location...") }
+    // Add this near your other state declarations in HomePage
+    var isButtonTransitioning by remember { mutableStateOf(false) }
+    var buttonColor by remember { mutableStateOf(Color(0xFF2962FF)) }
+
+    // Update button color based on alarmActive and transitioning state
+    LaunchedEffect(alarmActive, isButtonTransitioning) {
+        buttonColor = when {
+            alarmActive && !isButtonTransitioning -> Color.Red  // Alarm active, not pressed
+            !alarmActive && isButtonTransitioning -> Color(0xFF2962FF)  // Just stopped, show blue
+            else -> Color(0xFF2962FF)  // Default/not active
+        }
+    }
 
     // Load initial data
     LaunchedEffect(Unit) {
@@ -322,11 +334,24 @@ fun HomePage(navController: NavController) {
                 Button(
                     onClick = {
                         if (alarmActive) {
+                            // Set transitioning state
+                            isButtonTransitioning = true
+
                             // Stop alarm
                             AlarmService.stopAlarm(context)
                             Log.d("HomePage", "🛑 Stop alarm requested")
+
+                            // After a short delay, reset transitioning state
+                            scope.launch {
+                                kotlinx.coroutines.delay(2000) // Keep blue for 2 seconds after pressing
+                                isButtonTransitioning = false
+                            }
+
+                            // Update alarm state
+                            alarmActive = false
                         } else {
-                            // Trigger alarm
+                            // Trigger alarm - reset transitioning state
+                            isButtonTransitioning = false
                             AlarmService.triggerAlarm(context)
                             Log.d("HomePage", "🚨 Emergency alarm triggered")
                         }
@@ -345,7 +370,7 @@ fun HomePage(navController: NavController) {
                         .weight(1f)
                         .height(65.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (alarmActive) Color.Red else Color(0xFF2962FF)
+                        containerColor = buttonColor  // Use the reactive buttonColor
                     ),
                     shape = RoundedCornerShape(16.dp),
                     elevation = ButtonDefaults.buttonElevation(8.dp)
@@ -430,8 +455,49 @@ fun HomePage(navController: NavController) {
                 }
             },
             confirmButton = {
-                TextButton(onClick = { onDismiss() }) {
-                    Text("Close")
+                Row(
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Clear History Button
+                    if (recentAlerts.isNotEmpty()) {
+                        TextButton(
+                            onClick = {
+                                scope.launch {
+                                    // Clear database
+                                    withContext(Dispatchers.IO) {
+                                        alertLogDao.deleteAllAlerts()
+                                    }
+                                    // Update UI state
+                                    recentAlerts = emptyList()
+                                    alertCount = 0
+                                    // Show confirmation
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        "History cleared",
+                                        android.widget.Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            },
+                            colors = ButtonDefaults.textButtonColors(
+                                contentColor = Color.Red
+                            )
+                        ) {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Clear")
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    TextButton(onClick = onDismiss) {
+                        Text("Close")
+                    }
                 }
             }
         )

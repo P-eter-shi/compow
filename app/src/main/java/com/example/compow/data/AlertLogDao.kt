@@ -71,4 +71,7 @@ interface AlertLogDao {
 
     @Query("SELECT SUM(contacts_notified) FROM alert_logs")
     suspend fun getTotalContactsNotified(): Int?
+
+    @Query("DELETE FROM alert_logs")
+    suspend fun deleteAllAlerts()
 }

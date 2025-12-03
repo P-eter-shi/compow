@@ -21,20 +21,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.edit
 import androidx.lifecycle.Lifecycle
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import com.example.compow.ComPowApplication
 import com.example.compow.data.ContactCategory
 import com.example.compow.data.ContactEntity
 import com.example.compow.network.SocketIOManager
-import com.example.compow.ui.theme.ComPowTheme
 import com.example.compow.utils.AccessibilityHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -53,7 +50,7 @@ fun SettingsPage(navController: NavController) {
 
     val socketManager = remember { SocketIOManager.getInstance() }
 
-    // ✅ FIX: Collect StateFlow for reactive connection status
+    // Collect StateFlow for reactive connection status
     val isSocketConnected by socketManager.isConnected.collectAsState()
 
     var showMenu by remember { mutableStateOf(false) }
@@ -77,6 +74,7 @@ fun SettingsPage(navController: NavController) {
     val dismissSuccessDialog = { showSuccessDialog = false }
     val dismissErrorDialog = { showErrorDialog = false }
 
+    // Load initial data
     LaunchedEffect(Unit) {
         scope.launch {
             withContext(Dispatchers.IO) {
@@ -91,10 +89,11 @@ fun SettingsPage(navController: NavController) {
             }
         }
 
-        // ✅ Connect to Socket.IO (StateFlow handles the status update)
-        socketManager.connect()
+        // REMOVED: socketManager.connect()
+        // Connection is now managed by SocketForegroundService in MainActivity
     }
 
+    // Save settings changes
     LaunchedEffect(circleEnabled, groupEnabled, communityEnabled, profileInNotification) {
         prefs.edit {
             putBoolean("circle_enabled", circleEnabled)
@@ -115,7 +114,7 @@ fun SettingsPage(navController: NavController) {
                         uri,
                         contactDao,
                         category,
-                        onComplete = { // Success callback
+                        onComplete = {
                             scope.launch {
                                 withContext(Dispatchers.IO) {
                                     when (it) {
@@ -126,7 +125,7 @@ fun SettingsPage(navController: NavController) {
                                 }
                             }
                         },
-                        onError = { error -> // Error callback for duplicates
+                        onError = { error ->
                             errorMessage = error
                             showErrorDialog = true
                         }
@@ -156,6 +155,7 @@ fun SettingsPage(navController: NavController) {
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
         ) {
+            // Header with connection status
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -251,6 +251,7 @@ fun SettingsPage(navController: NavController) {
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            // Emergency Contacts Section
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -321,6 +322,7 @@ fun SettingsPage(navController: NavController) {
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            // Profile in Notification Toggle
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -370,6 +372,7 @@ fun SettingsPage(navController: NavController) {
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            // Emergency Message Section
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -395,7 +398,7 @@ fun SettingsPage(navController: NavController) {
                 }
 
                 Text(
-                    "This message will be sent via Socket.IO to your emergency contacts",
+                    "This message will be sent to your emergency contacts during an alert",
                     fontSize = 14.sp,
                     color = Color.Gray
                 )
@@ -426,7 +429,7 @@ fun SettingsPage(navController: NavController) {
                                 .height(160.dp),
                             placeholder = {
                                 Text(
-                                    "Enter your emergency message...\n\nExample: I'm in danger! Please help me immediately!\n\n(Your name will be automatically added at the beginning)",
+                                    "Enter your emergency message...\n\nExample: I'm in danger! Please help me immediately!\n\n(Your name will be automatically added)",
                                     fontSize = 14.sp,
                                     color = Color.Gray
                                 )
@@ -488,10 +491,11 @@ fun SettingsPage(navController: NavController) {
                                     putString("default_message", messageText)
                                 }
 
+                                // Show appropriate message based on connection status
                                 if (isSocketConnected) {
                                     showSuccessDialog = true
                                 } else {
-                                    errorMessage = "Message saved, but Socket.IO is not connected. Messages will be sent via SMS."
+                                    errorMessage = "Message saved! Note: Socket.IO is currently offline. Alerts will be sent via SMS until connection is restored."
                                     showErrorDialog = true
                                 }
                                 isSaving = false
@@ -526,6 +530,7 @@ fun SettingsPage(navController: NavController) {
         }
     }
 
+    // Success Dialog
     if (showSuccessDialog) {
         AlertDialog(
             onDismissRequest = dismissSuccessDialog,
@@ -538,7 +543,9 @@ fun SettingsPage(navController: NavController) {
                     Text("Success")
                 }
             },
-            text = { Text("Emergency message saved successfully!\n\nMessages will be sent via Socket.IO for faster delivery.") },
+            text = {
+                Text("Emergency message saved successfully!\n\n✅ Socket.IO connected - alerts will be delivered instantly.")
+            },
             confirmButton = {
                 TextButton(onClick = dismissSuccessDialog) {
                     Text("OK")
@@ -547,6 +554,7 @@ fun SettingsPage(navController: NavController) {
         )
     }
 
+    // Error Dialog
     if (showErrorDialog) {
         AlertDialog(
             onDismissRequest = dismissErrorDialog,
@@ -720,7 +728,7 @@ private suspend fun handleContactSelection(
     contactDao: com.example.compow.data.ContactDao,
     category: ContactCategory,
     onComplete: (ContactCategory) -> Unit,
-    onError: (String) -> Unit // Added callback for error handling
+    onError: (String) -> Unit
 ) {
     withContext(Dispatchers.IO) {
         val cursor = context.contentResolver.query(uri, null, null, null, null)
@@ -747,7 +755,6 @@ private suspend fun handleContactSelection(
 
                         phoneNumber = formatPhoneNumber(phoneNumber)
 
-                        // *** MODIFICATION START: Check for existing contact by category and number ***
                         val existingContact = contactDao.getContactByNumberAndCategory(phoneNumber, category)
 
                         if (existingContact == null) {
@@ -763,12 +770,10 @@ private suspend fun handleContactSelection(
                                 onComplete(category)
                             }
                         } else {
-                            // Contact already exists in this category
                             withContext(Dispatchers.Main) {
                                 onError("Contact '$name' with number '$phoneNumber' is already in your $category list.")
                             }
                         }
-                        // *** MODIFICATION END ***
                     }
                 }
             }
@@ -804,12 +809,4 @@ private fun formatPhoneNumber(phoneNumber: String): String {
     }
 
     return formatted
-}
-
-@Preview(showBackground = true, name = "Settings Page Preview")
-@Composable
-fun SettingsPagePreview() {
-    ComPowTheme {
-        SettingsPage(navController = rememberNavController())
-    }
 }

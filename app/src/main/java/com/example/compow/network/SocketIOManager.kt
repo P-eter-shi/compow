@@ -35,7 +35,7 @@ class SocketIOManager private constructor() {
         @Volatile
         private var INSTANCE: SocketIOManager? = null
 
-        // Server URL - UPDATE THIS!
+        // Server URL
         private const val SERVER_URL = "http://10.10.114.154:3000"
 
         // Socket Events
