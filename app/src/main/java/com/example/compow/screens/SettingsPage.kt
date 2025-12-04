@@ -88,9 +88,6 @@ fun SettingsPage(navController: NavController) {
                 }
             }
         }
-
-        // REMOVED: socketManager.connect()
-        // Connection is now managed by SocketForegroundService in MainActivity
     }
 
     // Save settings changes
@@ -371,6 +368,7 @@ fun SettingsPage(navController: NavController) {
             }
 
             Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Emergency Message Section
             Column(
@@ -494,6 +492,7 @@ fun SettingsPage(navController: NavController) {
                                 // Show appropriate message based on connection status
                                 if (isSocketConnected) {
                                     showSuccessDialog = true
+                                    errorMessage = "Message saved successfully! Socket.IO is connected - alerts will be delivered instantly."
                                 } else {
                                     errorMessage = "Message saved! Note: Socket.IO is currently offline. Alerts will be sent via SMS until connection is restored."
                                     showErrorDialog = true
@@ -544,7 +543,9 @@ fun SettingsPage(navController: NavController) {
                 }
             },
             text = {
-                Text("Emergency message saved successfully!\n\n✅ Socket.IO connected - alerts will be delivered instantly.")
+                Text(errorMessage.ifEmpty {
+                    "Operation completed successfully!"
+                })
             },
             confirmButton = {
                 TextButton(onClick = dismissSuccessDialog) {
@@ -564,7 +565,7 @@ fun SettingsPage(navController: NavController) {
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFFF9800))
-                    Text("Warning")
+                    Text("Notice")
                 }
             },
             text = { Text(errorMessage) },

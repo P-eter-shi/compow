@@ -1,5 +1,5 @@
 // Socket.IO Server for ComPow Emergency Alert System
-// Multi-User Support with Background Connectivity
+// Multi-User Support with Background Connectivity + Chat Feature
 // Node.js + Express + Socket.IO
 
 const express = require('express');
@@ -103,6 +103,71 @@ io.on('connection', (socket) => {
             userRooms.delete(socket.id);
             console.log(`👤 User ${userId} left room`);
         }
+    });
+
+    // Handle CHAT MESSAGE
+    socket.on('chat_message', async (data, callback) => {
+        const {
+            fromUserId,
+            fromUserName,
+            message,
+            contactIds,
+            timestamp
+        } = data;
+
+        console.log(`💬 Chat message from ${fromUserName} (${fromUserId})`);
+
+        // Parse contactIds (handle both array and JSON string)
+        const contacts = Array.isArray(contactIds) ? contactIds : JSON.parse(contactIds);
+        console.log(`👥 Sending to ${contacts.length} contacts`);
+
+        let successCount = 0;
+        let failCount = 0;
+        const deliveryStatus = [];
+
+        // Send message to each contact (all their devices)
+        for (const contactId of contacts) {
+            if (connectedUsers.has(contactId) && connectedUsers.get(contactId).size > 0) {
+                // Contact is online - send to ALL their devices
+                io.to(contactId).emit('chat_message_received', {
+                    fromUserId: fromUserId,
+                    fromUserName: fromUserName,
+                    message: message,
+                    timestamp: timestamp
+                });
+
+                const deviceCount = connectedUsers.get(contactId).size;
+                successCount++;
+                deliveryStatus.push({
+                    contactId: contactId,
+                    status: 'delivered',
+                    devices: deviceCount
+                });
+                console.log(`✅ Message sent to ${contactId} (${deviceCount} devices online)`);
+            } else {
+                // Contact is offline
+                failCount++;
+                deliveryStatus.push({
+                    contactId: contactId,
+                    status: 'offline'
+                });
+                console.log(`❌ ${contactId} is offline`);
+            }
+        }
+
+        // Send response back to sender
+        if (callback) {
+            callback({
+                success: true,
+                delivered: successCount,
+                failed: failCount,
+                total: contacts.length,
+                deliveryStatus: deliveryStatus,
+                message: `Message sent to ${successCount}/${contacts.length} contacts`
+            });
+        }
+
+        console.log(`📊 Chat Summary: ${successCount} delivered, ${failCount} failed`);
     });
 
     // Handle EMERGENCY ALERT
@@ -236,47 +301,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Handle regular MESSAGE
-    socket.on('message', (data, callback) => {
-        const {
-            toUserId,
-            fromUserId,
-            fromUserName,
-            message,
-            timestamp
-        } = data;
-
-        console.log(`💬 Message from ${fromUserName} to ${toUserId}`);
-
-        if (connectedUsers.has(toUserId) && connectedUsers.get(toUserId).size > 0) {
-            // Send message to recipient (all their devices)
-            io.to(toUserId).emit('message_received', {
-                fromUserId: fromUserId,
-                fromUserName: fromUserName,
-                message: message,
-                timestamp: timestamp
-            });
-
-            if (callback) {
-                callback({
-                    success: true,
-                    message: 'Message delivered',
-                    devices: connectedUsers.get(toUserId).size
-                });
-            }
-
-            console.log(`✅ Message delivered to ${toUserId} (${connectedUsers.get(toUserId).size} devices)`);
-        } else {
-            if (callback) {
-                callback({
-                    success: false,
-                    message: 'Recipient is offline'
-                });
-            }
-            console.log(`❌ ${toUserId} is offline`);
-        }
-    });
-
     // Handle disconnect
     socket.on('disconnect', () => {
         const userId = userRooms.get(socket.id);
@@ -328,7 +352,7 @@ http.listen(PORT, '0.0.0.0', () => {
     console.log(`🌐 Local: http://localhost:${PORT}`);
     console.log(`🌐 Network: http://YOUR_IP:${PORT}`);
     console.log(`⏰ Started at: ${new Date().toISOString()}`);
-    console.log(`✨ Multi-user & background support enabled`);
+    console.log(`✨ Multi-user, chat & background support enabled`);
     console.log('==========================================\n');
 });
 

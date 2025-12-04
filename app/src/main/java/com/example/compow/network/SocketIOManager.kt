@@ -31,12 +31,16 @@ class SocketIOManager private constructor() {
     private val _contactLiveLocation = MutableStateFlow<ContactLocationData?>(null)
     val contactLiveLocation: StateFlow<ContactLocationData?> = _contactLiveLocation.asStateFlow()
 
+    // NEW: StateFlow for chat messages
+    private val _chatMessageReceived = MutableStateFlow<ChatMessageData?>(null)
+    val chatMessageReceived: StateFlow<ChatMessageData?> = _chatMessageReceived.asStateFlow()
+
     companion object {
         @Volatile
         private var INSTANCE: SocketIOManager? = null
 
         // Server URL
-        private const val SERVER_URL = "http://10.10.114.154:3000"
+        private const val SERVER_URL = "http://10.10.67.86:3000"
 
         // Socket Events
         const val EVENT_CONNECT = Socket.EVENT_CONNECT
@@ -51,6 +55,8 @@ class SocketIOManager private constructor() {
         const val EVENT_SAFE_ALERT_RECEIVED = "safe_alert_received"
         const val EVENT_CONTACT_LIVE_LOCATION = "contact_live_location"
         const val EVENT_USER_STATUS_CHANGED = "user_status_changed"
+        const val EVENT_CHAT_MESSAGE = "chat_message"
+        const val EVENT_CHAT_MESSAGE_RECEIVED = "chat_message_received"
 
         fun getInstance(): SocketIOManager {
             return INSTANCE ?: synchronized(this) {
@@ -83,6 +89,13 @@ class SocketIOManager private constructor() {
         val fromUserName: String?,
         val latitude: Double,
         val longitude: Double,
+        val timestamp: Long
+    )
+
+    data class ChatMessageData(
+        val fromUserId: String,
+        val fromUserName: String,
+        val message: String,
         val timestamp: Long
     )
 
@@ -175,6 +188,29 @@ class SocketIOManager private constructor() {
         }
     }
 
+    private val onChatMessageReceived = Emitter.Listener { args ->
+        if (args.isNotEmpty()) {
+            try {
+                val data = args[0] as? JSONObject
+                if (data != null) {
+                    val messageData = ChatMessageData(
+                        fromUserId = data.optString("fromUserId", ""),
+                        fromUserName = data.optString("fromUserName", "Unknown"),
+                        message = data.optString("message", ""),
+                        timestamp = data.optLong("timestamp", System.currentTimeMillis())
+                    )
+
+                    CoroutineScope(Dispatchers.Main).launch {
+                        _chatMessageReceived.value = messageData
+                        Log.d("SocketIOManager", "💬 Chat message from: ${messageData.fromUserName}")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("SocketIOManager", "❌ Error parsing chat message: ${e.message}")
+            }
+        }
+    }
+
     private val onUserStatusChanged = Emitter.Listener { args ->
         if (args.isNotEmpty()) {
             try {
@@ -220,6 +256,7 @@ class SocketIOManager private constructor() {
             on(EVENT_SAFE_ALERT_RECEIVED, onSafeAlertReceived)
             on(EVENT_CONTACT_LIVE_LOCATION, onContactLiveLocation)
             on(EVENT_USER_STATUS_CHANGED, onUserStatusChanged)
+            on(EVENT_CHAT_MESSAGE_RECEIVED, onChatMessageReceived)
         }
     }
 
@@ -258,6 +295,52 @@ class SocketIOManager private constructor() {
             }
             socket?.emit(EVENT_LEAVE_ROOM, data)
             Log.d("SocketIOManager", "🚪 Left room: $userId")
+        }
+    }
+
+    fun sendChatMessage(
+        fromUserId: String,
+        fromUserName: String,
+        message: String,
+        contactIds: List<String>,
+        callback: (Boolean, String?) -> Unit
+    ) {
+        if (!_isConnected.value) {
+            CoroutineScope(Dispatchers.Main).launch {
+                callback(false, "Not connected")
+            }
+            return
+        }
+
+        try {
+            val data = JSONObject().apply {
+                put("fromUserId", fromUserId)
+                put("fromUserName", fromUserName)
+                put("message", message)
+                put("contactIds", JSONArray(contactIds))
+                put("timestamp", System.currentTimeMillis())
+            }
+
+            socket?.emit(EVENT_CHAT_MESSAGE, data, io.socket.client.Ack { args ->
+                CoroutineScope(Dispatchers.Main).launch {
+                    if (args.isNotEmpty()) {
+                        val response = args[0] as? JSONObject
+                        val success = response?.optBoolean("success", false) ?: false
+                        val responseMsg = response?.optString("message")
+                        callback(success, responseMsg)
+                    } else {
+                        callback(false, "No response")
+                    }
+                }
+            })
+
+            Log.d("SocketIOManager", "💬 Chat message sent to ${contactIds.size} contacts")
+
+        } catch (e: Exception) {
+            Log.e("SocketIOManager", "❌ Error: ${e.message}")
+            CoroutineScope(Dispatchers.Main).launch {
+                callback(false, e.message)
+            }
         }
     }
 
@@ -399,5 +482,9 @@ class SocketIOManager private constructor() {
 
     fun clearContactLocation() {
         _contactLiveLocation.value = null
+    }
+
+    fun clearChatMessage() {
+        _chatMessageReceived.value = null
     }
 }

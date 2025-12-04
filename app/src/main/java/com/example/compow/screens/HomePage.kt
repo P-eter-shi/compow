@@ -82,16 +82,15 @@ fun HomePage(navController: NavController) {
     var nearbyPoliceStations by remember { mutableStateOf<List<NearbyPlace>>(emptyList()) }
     var isSearching by remember { mutableStateOf(false) }
     var locationStatus by remember { mutableStateOf("Getting location...") }
-    // Add this near your other state declarations in HomePage
     var isButtonTransitioning by remember { mutableStateOf(false) }
     var buttonColor by remember { mutableStateOf(Color(0xFF2962FF)) }
 
     // Update button color based on alarmActive and transitioning state
     LaunchedEffect(alarmActive, isButtonTransitioning) {
         buttonColor = when {
-            alarmActive && !isButtonTransitioning -> Color.Red  // Alarm active, not pressed
-            !alarmActive && isButtonTransitioning -> Color(0xFF2962FF)  // Just stopped, show blue
-            else -> Color(0xFF2962FF)  // Default/not active
+            alarmActive && !isButtonTransitioning -> Color.Red
+            !alarmActive && isButtonTransitioning -> Color(0xFF2962FF)
+            else -> Color(0xFF2962FF)
         }
     }
 
@@ -150,7 +149,6 @@ fun HomePage(navController: NavController) {
                 }
 
                 try {
-                    // Cache-first strategy with integrated API
                     val cachedResults = poiCacheManager.getCachedResults(location.latitude, location.longitude)
                         ?: poiCacheManager.fetchAndCacheNearby(location.latitude, location.longitude)
 
@@ -228,6 +226,20 @@ fun HomePage(navController: NavController) {
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false }
                     ) {
+                        DropdownMenuItem(
+                            text = { Text("💬 Messages") },
+                            onClick = {
+                                showMenu = false
+                                navController.navigate("messages")
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.Message,
+                                    contentDescription = null,
+                                    tint = Color(0xFF2962FF)
+                                )
+                            }
+                        )
                         DropdownMenuItem(
                             text = { Text("Settings") },
                             onClick = {
@@ -318,7 +330,7 @@ fun HomePage(navController: NavController) {
                 isSearching = isSearching,
                 locationStatus = locationStatus,
                 locationHelper = locationHelper,
-                showPOIs = alarmActive // Only show POIs during emergency
+                showPOIs = alarmActive
             )
 
             Spacer(modifier = Modifier.weight(1f))
@@ -334,29 +346,23 @@ fun HomePage(navController: NavController) {
                 Button(
                     onClick = {
                         if (alarmActive) {
-                            // Set transitioning state
                             isButtonTransitioning = true
 
-                            // Stop alarm
                             AlarmService.stopAlarm(context)
                             Log.d("HomePage", "🛑 Stop alarm requested")
 
-                            // After a short delay, reset transitioning state
                             scope.launch {
-                                kotlinx.coroutines.delay(2000) // Keep blue for 2 seconds after pressing
+                                kotlinx.coroutines.delay(2000)
                                 isButtonTransitioning = false
                             }
 
-                            // Update alarm state
                             alarmActive = false
                         } else {
-                            // Trigger alarm - reset transitioning state
                             isButtonTransitioning = false
                             AlarmService.triggerAlarm(context)
                             Log.d("HomePage", "🚨 Emergency alarm triggered")
                         }
 
-                        // Refresh UI state
                         scope.launch {
                             withContext(Dispatchers.IO) {
                                 activeAlert = alertLogDao.getActiveAlert()
@@ -370,7 +376,7 @@ fun HomePage(navController: NavController) {
                         .weight(1f)
                         .height(65.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = buttonColor  // Use the reactive buttonColor
+                        containerColor = buttonColor
                     ),
                     shape = RoundedCornerShape(16.dp),
                     elevation = ButtonDefaults.buttonElevation(8.dp)
@@ -459,19 +465,15 @@ fun HomePage(navController: NavController) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    // Clear History Button
                     if (recentAlerts.isNotEmpty()) {
                         TextButton(
                             onClick = {
                                 scope.launch {
-                                    // Clear database
                                     withContext(Dispatchers.IO) {
                                         alertLogDao.deleteAllAlerts()
                                     }
-                                    // Update UI state
                                     recentAlerts = emptyList()
                                     alertCount = 0
-                                    // Show confirmation
                                     android.widget.Toast.makeText(
                                         context,
                                         "History cleared",
@@ -628,7 +630,6 @@ fun MapSection(
                 myLocationButtonEnabled = false
             )
         ) {
-            // User location marker
             if (userLocation != null) {
                 Marker(
                     state = rememberMarkerState(position = userLocation),
@@ -641,7 +642,6 @@ fun MapSection(
                 )
             }
 
-            // Only show POIs during emergency
             if (showPOIs) {
                 hospitals.forEach { hospital ->
                     Marker(
@@ -663,7 +663,6 @@ fun MapSection(
             }
         }
 
-        // Searching indicator
         if (isSearching) {
             Box(
                 modifier = Modifier
@@ -681,7 +680,6 @@ fun MapSection(
             }
         }
 
-        // Map legend
         Column(
             modifier = Modifier
                 .align(Alignment.BottomStart)

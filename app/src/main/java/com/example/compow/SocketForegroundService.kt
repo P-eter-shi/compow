@@ -21,6 +21,7 @@ class SocketForegroundService : Service() {
 
     private var userId: String? = null
     private var userName: String? = null
+    private var isInChatRoom = false
 
     companion object {
         const val NOTIFICATION_ID = 2001
@@ -28,6 +29,8 @@ class SocketForegroundService : Service() {
 
         const val ACTION_START_CONNECT = "ACTION_START_CONNECT"
         const val ACTION_STOP_CONNECT = "ACTION_STOP_CONNECT"
+        const val ACTION_JOIN_ROOM = "ACTION_JOIN_ROOM"
+        const val ACTION_LEAVE_ROOM = "ACTION_LEAVE_ROOM"
 
         const val EXTRA_USER_ID = "USER_ID"
         const val EXTRA_USER_NAME = "USER_NAME"
@@ -49,6 +52,20 @@ class SocketForegroundService : Service() {
         fun stopConnection(context: Context) {
             val intent = Intent(context, SocketForegroundService::class.java).apply {
                 action = ACTION_STOP_CONNECT
+            }
+            context.startService(intent)
+        }
+
+        fun joinChatRoom(context: Context) {
+            val intent = Intent(context, SocketForegroundService::class.java).apply {
+                action = ACTION_JOIN_ROOM
+            }
+            context.startService(intent)
+        }
+
+        fun leaveChatRoom(context: Context) {
+            val intent = Intent(context, SocketForegroundService::class.java).apply {
+                action = ACTION_LEAVE_ROOM
             }
             context.startService(intent)
         }
@@ -82,6 +99,18 @@ class SocketForegroundService : Service() {
                 disconnectFromSocket()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
+            }
+
+            ACTION_JOIN_ROOM -> {
+                if (userId != null && socketManager.isConnected.value) {
+                    joinChatRoom()
+                }
+            }
+
+            ACTION_LEAVE_ROOM -> {
+                if (userId != null && socketManager.isConnected.value) {
+                    leaveChatRoom()
+                }
             }
         }
 
@@ -162,9 +191,21 @@ class SocketForegroundService : Service() {
                     if (socketManager.isConnected.value) {
                         socketManager.joinUserRoom(userId!!, userName ?: "User")
 
-                        withContext(Dispatchers.Main) {
-                            updateNotification("Connected • Ready for alerts")
+                        // Check if user was previously in chat room
+                        val prefs = getSharedPreferences("compow_prefs", MODE_PRIVATE)
+                        val wasInChatRoom = prefs.getBoolean("is_in_chat_room", false)
+
+                        if (wasInChatRoom) {
+                            isInChatRoom = true
+                            withContext(Dispatchers.Main) {
+                                updateNotification("Connected • Chat Room Active")
+                            }
+                        } else {
+                            withContext(Dispatchers.Main) {
+                                updateNotification("Connected • Ready for alerts")
+                            }
                         }
+
                         Log.d("SocketForegroundService", "✅ Connected - User: $userId")
                     } else {
                         withContext(Dispatchers.Main) {
@@ -178,6 +219,44 @@ class SocketForegroundService : Service() {
                 withContext(Dispatchers.Main) {
                     updateNotification("Connection error")
                 }
+            }
+        }
+    }
+
+    private fun joinChatRoom() {
+        serviceScope.launch {
+            try {
+                if (socketManager.isConnected.value && userId != null) {
+                    socketManager.joinUserRoom(userId!!, userName ?: "User")
+                    isInChatRoom = true
+
+                    withContext(Dispatchers.Main) {
+                        updateNotification("Connected • Chat Room Active")
+                    }
+
+                    Log.d("SocketForegroundService", "🚪 Joined chat room: $userId")
+                }
+            } catch (e: Exception) {
+                Log.e("SocketForegroundService", "❌ Join room error: ${e.message}")
+            }
+        }
+    }
+
+    private fun leaveChatRoom() {
+        serviceScope.launch {
+            try {
+                if (socketManager.isConnected.value && userId != null) {
+                    socketManager.leaveUserRoom(userId!!)
+                    isInChatRoom = false
+
+                    withContext(Dispatchers.Main) {
+                        updateNotification("Connected • Ready for alerts")
+                    }
+
+                    Log.d("SocketForegroundService", "🚪 Left chat room: $userId")
+                }
+            } catch (e: Exception) {
+                Log.e("SocketForegroundService", "❌ Leave room error: ${e.message}")
             }
         }
     }

@@ -69,12 +69,14 @@ class MainActivity : ComponentActivity() {
     /**
      * Start background socket service if user is logged in
      * This keeps the connection alive even when app is in background
+     * Also auto-joins chat room if user was previously in one
      */
     private fun startSocketServiceIfLoggedIn() {
         try {
             val prefs = getSharedPreferences("compow_prefs", MODE_PRIVATE)
             val userId = prefs.getString("user_id", null)
             val userName = prefs.getString("user_name", null)
+            val wasInChatRoom = prefs.getBoolean("is_in_chat_room", false)
 
             if (userId != null && userName != null) {
                 Log.d("MainActivity", "🚀 Starting background socket service")
@@ -82,6 +84,15 @@ class MainActivity : ComponentActivity() {
 
                 // Start foreground service for persistent connection
                 SocketForegroundService.startConnection(this, userId, userName)
+
+                // Auto-join chat room if user was previously in one
+                if (wasInChatRoom) {
+                    Log.d("MainActivity", "🚪 Auto-joining chat room")
+                    // Give socket time to connect, then join room
+                    android.os.Handler(mainLooper).postDelayed({
+                        SocketForegroundService.joinChatRoom(this)
+                    }, 3000) // Wait 3 seconds for connection
+                }
             } else {
                 Log.w("MainActivity", "⚠️ No user logged in, skipping socket service")
             }
@@ -131,7 +142,10 @@ class MainActivity : ComponentActivity() {
         if (shouldDisconnect) {
             Log.d("MainActivity", "🔴 User logged out, stopping socket service")
             SocketForegroundService.stopConnection(this)
-            prefs.edit { putBoolean("user_logged_out", false) }
+            prefs.edit {
+                putBoolean("user_logged_out", false)
+                putBoolean("is_in_chat_room", false)
+            }
         } else {
             Log.d("MainActivity", "✅ Keeping socket service alive in background")
         }
@@ -154,5 +168,7 @@ fun ComPowApp() {
         composable("home") { HomePage(navController) }
         composable("settings") { SettingsPage(navController) }
         composable("destination") { DestinationPage(navController) }
+        composable("messages") { MessagesPage(navController) }
+        composable("chat") { ChatPage(navController) }
     }
 }
