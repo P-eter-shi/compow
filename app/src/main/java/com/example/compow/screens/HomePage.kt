@@ -47,6 +47,7 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
 import android.util.Log
+import androidx.compose.material.icons.automirrored.filled.Message
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -234,7 +235,7 @@ fun HomePage(navController: NavController) {
                             },
                             leadingIcon = {
                                 Icon(
-                                    Icons.Default.Message,
+                                    Icons.AutoMirrored.Filled.Message,
                                     contentDescription = null,
                                     tint = Color(0xFF2962FF)
                                 )
@@ -290,39 +291,33 @@ fun HomePage(navController: NavController) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(12.dp),
+                            .padding(8.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(
-                            Icons.Default.Warning,
-                            contentDescription = null,
-                            tint = Color.Red,
-                            modifier = Modifier.size(24.dp)
-                        )
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 "🚨 ACTIVE EMERGENCY",
                                 fontWeight = FontWeight.Bold,
                                 color = Color.Red,
-                                fontSize = 14.sp
+                                fontSize = 12.sp
                             )
                             Text(
-                                "${activeAlert!!.contactsNotified} contacts notified • Live tracking active",
-                                fontSize = 12.sp,
+                                "${activeAlert!!.contactsNotified} contacts notified",
+                                fontSize = 10.sp,
                                 color = Color.Gray
                             )
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(6.dp))
             }
 
             // Map Section
             MapSection(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(if (alarmActive) 320.dp else 380.dp)
+                    .height(if (alarmActive) 450.dp else 500.dp)
                     .padding(horizontal = 16.dp),
                 userLocation = userLocation,
                 hospitals = nearbyHospitals,
