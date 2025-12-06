@@ -23,52 +23,35 @@ fun FirstPage(navController: NavController) {
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(24.dp),
+            modifier = Modifier.padding(32.dp)
         ) {
             Text(
-                text = "Sign up for free",
-                fontSize = 20.sp,
+                text = "Welcome to ComPow",
+                fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.Black
+                color = Color(0xFF2962FF)
             )
+
+            Text(
+                text = "Emergency Alert System",
+                fontSize = 16.sp,
+                color = Color.Gray
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
 
             Button(
                 onClick = { navController.navigate("signup") },
                 modifier = Modifier
-                    .width(250.dp)
-                    .height(50.dp),
+                    .width(280.dp)
+                    .height(56.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF2962FF)
                 ),
-                shape = RoundedCornerShape(8.dp)
+                shape = RoundedCornerShape(12.dp)
             ) {
-                Text("Sign up", fontSize = 16.sp, color = Color.White)
-            }
-
-            Text(
-                text = "or",
-                fontSize = 16.sp,
-                color = Color.Black
-            )
-
-            Text(
-                text = "Have an account",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color.Black
-            )
-
-            Button(
-                onClick = { navController.navigate("login") },
-                modifier = Modifier
-                    .width(250.dp)
-                    .height(50.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF2962FF)
-                ),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text("Login", fontSize = 16.sp, color = Color.White)
+                Text("Get Started", fontSize = 18.sp, color = Color.White)
             }
         }
     }

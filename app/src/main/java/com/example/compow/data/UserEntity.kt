@@ -18,14 +18,11 @@ data class UserEntity(
     @ColumnInfo(name = "phone_number")
     val phoneNumber: String,
 
-    @ColumnInfo(name = "year_of_study")
-    val yearOfStudy: Int,
-
-    @ColumnInfo(name = "course_of_study")
-    val courseOfStudy: String,
-
     @ColumnInfo(name = "profile_picture_uri")
     val profilePictureUri: String? = null,
+
+    @ColumnInfo(name = "google_id")
+    val googleId: String? = null,
 
     @ColumnInfo(name = "created_at")
     val createdAt: Long = System.currentTimeMillis()

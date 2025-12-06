@@ -32,7 +32,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
-import androidx.compose.material3.ExperimentalMaterial3Api
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,15 +47,12 @@ fun DestinationPage(navController: NavController) {
     var showUserProfile by remember { mutableStateOf(false) }
     var showStatsDialog by remember { mutableStateOf(false) }
 
-    // Load contacts from database - USES: getAllContacts()
     var circleContacts by remember { mutableStateOf<List<ContactEntity>>(emptyList()) }
     var groupContacts by remember { mutableStateOf<List<ContactEntity>>(emptyList()) }
     var communityContacts by remember { mutableStateOf<List<ContactEntity>>(emptyList()) }
 
-    // User info - USES: getCurrentUser(), getUserById()
     var currentUser by remember { mutableStateOf<UserEntity?>(null) }
 
-    // Statistics - USES: getAlertLogCount(), getUserCount()
     var totalAlerts by remember { mutableIntStateOf(0) }
     var totalUsers by remember { mutableIntStateOf(0) }
 
@@ -67,31 +63,23 @@ fun DestinationPage(navController: NavController) {
     LaunchedEffect(Unit) {
         scope.launch {
             withContext(Dispatchers.IO) {
-                // USES: getAllContacts()
                 val allContacts = contactDao.getAllContacts()
 
-                // Separate by category
                 circleContacts = allContacts.filter { it.category == ContactCategory.CIRCLE }
                 groupContacts = allContacts.filter { it.category == ContactCategory.GROUP }
                 communityContacts = allContacts.filter { it.category == ContactCategory.COMMUNITY }
 
-                // USES: getCurrentUser()
                 currentUser = userDao.getCurrentUser()
 
-                // If no current user from database, try getting by ID from preferences
                 if (currentUser == null) {
                     val prefs = context.getSharedPreferences("compow_prefs", Context.MODE_PRIVATE)
                     val userId = prefs.getString("user_id", null)
                     if (userId != null) {
-                        // USES: getUserById()
                         currentUser = userDao.getUserById(userId)
                     }
                 }
 
-                // USES: getAlertLogCount()
                 totalAlerts = alertLogDao.getAlertLogCount()
-
-                // USES: getUserCount()
                 totalUsers = userDao.getUserCount()
             }
         }
@@ -183,7 +171,7 @@ fun DestinationPage(navController: NavController) {
                             },
                             leadingIcon = { Icon(Icons.Default.Settings, contentDescription = null) }
                         )
-                        Divider()
+                        HorizontalDivider()
                         DropdownMenuItem(
                             text = {
                                 Row(
@@ -244,34 +232,27 @@ fun DestinationPage(navController: NavController) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Circle Section - USES: getContactById()
+            // Circle Section
             ContactListSection(
                 title = "Circle",
                 contacts = circleContacts,
                 borderColor = Color(0xFF2962FF),
                 onContactClick = { contact ->
                     scope.launch {
-                        // Fetch the full contact details
                         val fullContact = withContext(Dispatchers.IO) {
                             contactDao.getContactById(contact.id)
                         }
 
-                        // --- FIX APPLIED HERE ---
-                        // Use the fetched data to update the state, which will show a dialog.
                         if (fullContact != null) {
                             selectedContactDetails = fullContact
                             showContactDetailsDialog = true
                         }
-
                     }
                 },
                 onDeleteContact = { contact ->
                     scope.launch {
                         withContext(Dispatchers.IO) {
-                            // USES: deleteContactById()
                             contactDao.deleteContactById(contact.id)
-
-                            // Refresh list
                             val allContacts = contactDao.getAllContacts()
                             circleContacts = allContacts.filter { it.category == ContactCategory.CIRCLE }
                         }
@@ -292,8 +273,6 @@ fun DestinationPage(navController: NavController) {
                             contactDao.getContactById(contact.id)
                         }
 
-                        // --- FIX APPLIED HERE ---
-                        // Use the fetched data to update the state, which will show a dialog.
                         if (fullContact != null) {
                             selectedContactDetails = fullContact
                             showContactDetailsDialog = true
@@ -324,8 +303,6 @@ fun DestinationPage(navController: NavController) {
                             contactDao.getContactById(contact.id)
                         }
 
-                        // --- FIX APPLIED HERE ---
-                        // Use the fetched data to update the state, which will show a dialog.
                         if (fullContact != null) {
                             selectedContactDetails = fullContact
                             showContactDetailsDialog = true
@@ -347,7 +324,7 @@ fun DestinationPage(navController: NavController) {
         }
     }
 
-    // Place this at the end of the DestinationPage composable function's body
+    // Contact Details Dialog
     val onDismisser = { showContactDetailsDialog = false }
     if (showContactDetailsDialog && selectedContactDetails != null) {
         AlertDialog(
@@ -357,7 +334,6 @@ fun DestinationPage(navController: NavController) {
                 Column {
                     Text("Phone: ${selectedContactDetails!!.phoneNumber}")
                     Text("Category: ${selectedContactDetails!!.category}")
-                    // You can add more details here if needed
                 }
             },
             confirmButton = {
@@ -368,14 +344,9 @@ fun DestinationPage(navController: NavController) {
         )
     }
 
-
-    // User Profile Dialog - USES: updateUser(), updateUserName(), updateEmail(), updatePhoneNumber()
+    // User Profile Dialog (Read-only for Google accounts)
     val dismissUserProfileDialog = { showUserProfile = false }
     if (showUserProfile && currentUser != null) {
-        var editedName by remember { mutableStateOf(currentUser!!.fullName) }
-        var editedEmail by remember { mutableStateOf(currentUser!!.email) }
-        var editedPhone by remember { mutableStateOf(currentUser!!.phoneNumber) }
-
         AlertDialog(
             onDismissRequest = dismissUserProfileDialog,
             title = {
@@ -384,89 +355,96 @@ fun DestinationPage(navController: NavController) {
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(Icons.Default.Person, contentDescription = null, tint = Color(0xFF2962FF))
-                    Text("User Profile")
+                    Text("Profile Information")
                 }
             },
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    OutlinedTextField(
-                        value = editedName,
-                        onValueChange = { editedName = it },
-                        label = { Text("Full Name") },
-                        modifier = Modifier.fillMaxWidth(),
-                        leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) }
-                    )
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color(0xFFE3F2FD)
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                "Name",
+                                fontSize = 12.sp,
+                                color = Color.Gray
+                            )
+                            Text(
+                                currentUser!!.fullName,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
 
-                    OutlinedTextField(
-                        value = editedEmail,
-                        onValueChange = { editedEmail = it },
-                        label = { Text("Email") },
-                        modifier = Modifier.fillMaxWidth(),
-                        leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) }
-                    )
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color(0xFFE3F2FD)
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                "Email (Google Account)",
+                                fontSize = 12.sp,
+                                color = Color.Gray
+                            )
+                            Text(
+                                currentUser!!.email,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
 
-                    OutlinedTextField(
-                        value = editedPhone,
-                        onValueChange = { editedPhone = it },
-                        label = { Text("Phone") },
-                        modifier = Modifier.fillMaxWidth(),
-                        leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null) }
-                    )
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color(0xFFE3F2FD)
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                "Phone Number",
+                                fontSize = 12.sp,
+                                color = Color.Gray
+                            )
+                            Text(
+                                currentUser!!.phoneNumber,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
 
                     Text(
-                        "Course: ${currentUser!!.courseOfStudy}",
-                        fontSize = 14.sp,
-                        color = Color.Gray
-                    )
-
-                    Text(
-                        "Year: ${currentUser!!.yearOfStudy}",
-                        fontSize = 14.sp,
+                        "Profile information from Google cannot be edited here. Phone number can be updated during signup.",
+                        fontSize = 12.sp,
                         color = Color.Gray
                     )
                 }
             },
             confirmButton = {
-                Button(
-                    onClick = {
-                        scope.launch {
-                            withContext(Dispatchers.IO) {
-                                // Individual updates if needed
-                                userDao.updateUserName(currentUser!!.userId, editedName)
-                                userDao.updateEmail(currentUser!!.userId, editedEmail)
-                                userDao.updatePhoneNumber(currentUser!!.userId, editedPhone)
-
-                                // Create updated user object for UI
-                                val updatedUser = currentUser!!.copy(
-                                    fullName = editedName,
-                                    email = editedEmail,
-                                    phoneNumber = editedPhone
-                                )
-
-                                // Update UI on main thread
-                                withContext(Dispatchers.Main) {
-                                    currentUser = updatedUser
-                                    dismissUserProfileDialog() // Only set once
-                                }
-                            }
-                        }
-                    }
-                ) {
-                    Text("Save")
-                }
-            },
-            dismissButton = {
                 TextButton(onClick = dismissUserProfileDialog) {
-                    Text("Cancel")
+                    Text("Close")
                 }
             }
         )
     }
 
-    // Statistics Dialog - USES: getAllAlertLogs()
+    // Statistics Dialog
     val onDismiss = { showStatsDialog = false }
     if (showStatsDialog) {
         var allAlerts by remember { mutableStateOf<List<com.example.compow.data.AlertLogEntity>>(emptyList()) }
@@ -474,7 +452,6 @@ fun DestinationPage(navController: NavController) {
         LaunchedEffect(Unit) {
             scope.launch {
                 withContext(Dispatchers.IO) {
-                    // USES: getAllAlertLogs()
                     allAlerts = alertLogDao.getAllAlertLogs()
                 }
             }
@@ -499,12 +476,12 @@ fun DestinationPage(navController: NavController) {
                     StatRow("Circle Contacts", "${circleContacts.size}")
                     StatRow("Group Contacts", "${groupContacts.size}")
                     StatRow("Community Contacts", "${communityContacts.size}")
-                    Divider()
+                    HorizontalDivider()
                     StatRow("Total Alerts", "$totalAlerts")
                     StatRow("Registered Users", "$totalUsers")
 
                     if (allAlerts.isNotEmpty()) {
-                        Divider()
+                        HorizontalDivider()
                         Text(
                             "Recent Alerts",
                             fontWeight = FontWeight.Bold,
@@ -536,7 +513,6 @@ fun DestinationPage(navController: NavController) {
         )
     }
 }
-
 
 @Composable
 fun StatItem(
@@ -626,8 +602,7 @@ fun ContactListSection(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                // Set a specific maximum height for the scrollable list
-                .heightIn(max = 250.dp) // Adjusted max height for scrolling to be visible
+                .heightIn(max = 250.dp)
                 .border(2.dp, borderColor, RoundedCornerShape(12.dp))
                 .background(Color.White.copy(alpha = 0.8f), RoundedCornerShape(12.dp))
                 .padding(16.dp)
@@ -651,7 +626,6 @@ fun ContactListSection(
                     )
                 }
             } else {
-                // *** REPLACED Column with LazyColumn for scrollable list ***
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -739,6 +713,7 @@ fun ContactItem(
             }
         }
     }
+
     val onDismiss = { showDeleteDialog = false }
     if (showDeleteDialog) {
         AlertDialog(
@@ -757,7 +732,7 @@ fun ContactItem(
                 }
             },
             dismissButton = {
-                TextButton(onClick = {onDismiss()}) {
+                TextButton(onClick = { onDismiss() }) {
                     Text("Cancel")
                 }
             }

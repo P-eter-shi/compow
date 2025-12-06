@@ -164,7 +164,6 @@ fun ComPowApp() {
     NavHost(navController = navController, startDestination = startDestination) {
         composable("first") { FirstPage(navController) }
         composable("signup") { SignupPage(navController) }
-        composable("login") { LoginPage(navController) }
         composable("home") { HomePage(navController) }
         composable("settings") { SettingsPage(navController) }
         composable("destination") { DestinationPage(navController) }

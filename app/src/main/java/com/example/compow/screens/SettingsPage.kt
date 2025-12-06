@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Message
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -33,6 +34,8 @@ import com.example.compow.data.ContactCategory
 import com.example.compow.data.ContactEntity
 import com.example.compow.network.SocketIOManager
 import com.example.compow.utils.AccessibilityHelper
+import androidx.credentials.CredentialManager
+import androidx.credentials.ClearCredentialStateRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -54,12 +57,14 @@ fun SettingsPage(navController: NavController) {
     val isSocketConnected by socketManager.isConnected.collectAsState()
 
     var showMenu by remember { mutableStateOf(false) }
+    var showLogoutDialog by remember { mutableStateOf(false) }
     var circleEnabled by remember { mutableStateOf(prefs.getBoolean("circle_enabled", true)) }
     var groupEnabled by remember { mutableStateOf(prefs.getBoolean("group_enabled", true)) }
     var communityEnabled by remember { mutableStateOf(prefs.getBoolean("community_enabled", false)) }
     var profileInNotification by remember { mutableStateOf(prefs.getBoolean("profile_in_notification", true)) }
     var messageText by remember { mutableStateOf(prefs.getString("default_message", "") ?: "") }
     var userName by remember { mutableStateOf(prefs.getString("user_name", "User") ?: "User") }
+    var userEmail by remember { mutableStateOf(prefs.getString("user_email", "") ?: "") }
     var showSuccessDialog by remember { mutableStateOf(false) }
     var showErrorDialog by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
@@ -85,6 +90,7 @@ fun SettingsPage(navController: NavController) {
                 val user = userDao.getCurrentUser()
                 if (user != null) {
                     userName = user.fullName
+                    userEmail = user.email
                 }
             }
         }
@@ -179,10 +185,15 @@ fun SettingsPage(navController: NavController) {
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        "Settings",
-                        fontSize = 24.sp,
+                        userName,
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.Black
+                    )
+                    Text(
+                        userEmail,
+                        fontSize = 12.sp,
+                        color = Color.Gray
                     )
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -236,6 +247,21 @@ fun SettingsPage(navController: NavController) {
                             },
                             leadingIcon = {
                                 Icon(Icons.Default.Group, contentDescription = "Contacts")
+                            }
+                        )
+                        HorizontalDivider()
+                        DropdownMenuItem(
+                            text = { Text("Logout", color = Color.Red) },
+                            onClick = {
+                                showMenu = false
+                                showLogoutDialog = true
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.Logout,
+                                    contentDescription = "Logout",
+                                    tint = Color.Red
+                                )
                             }
                         )
                     }
@@ -368,7 +394,6 @@ fun SettingsPage(navController: NavController) {
             }
 
             Spacer(modifier = Modifier.height(24.dp))
-            Spacer(modifier = Modifier.height(24.dp))
 
             // Emergency Message Section
             Column(
@@ -489,7 +514,6 @@ fun SettingsPage(navController: NavController) {
                                     putString("default_message", messageText)
                                 }
 
-                                // Show appropriate message based on connection status
                                 if (isSocketConnected) {
                                     showSuccessDialog = true
                                     errorMessage = "Message saved successfully! Socket.IO is connected - alerts will be delivered instantly."
@@ -527,6 +551,62 @@ fun SettingsPage(navController: NavController) {
 
             Spacer(modifier = Modifier.height(32.dp))
         }
+    }
+
+    suspend fun signOut(context: Context) {
+        val credentialManager = CredentialManager.create(context)
+
+        // This clears all Google identity tokens stored on device
+        credentialManager.clearCredentialState(
+            ClearCredentialStateRequest()
+        )
+    }
+
+    // Logout Confirmation Dialog
+    val onDismiss = { showLogoutDialog = false }
+    if (showLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, tint = Color.Red)
+                    Text("Logout")
+                }
+            },
+            text = {
+                Text("Are you sure you want to logout? You'll need to sign in again with Google.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        scope.launch {
+                            signOut(context)
+                            // Clear preferences
+                            prefs.edit {
+                                clear()
+                                putBoolean("user_logged_out", true)
+                            }
+
+                            // Navigate to first page
+                            navController.navigate("first") {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                ) {
+                    Text("Logout", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { onDismiss() }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     // Success Dialog

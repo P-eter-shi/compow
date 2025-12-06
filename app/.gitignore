@@ -1,1 +1,41 @@
 /build
+google-services.json
+executionHistory.bin
+executionHistory.lock
+# Gradle
+.gradle/
+build/
+out/
+.idea/
+
+# Gradle wrapper (unless you want to commit it)
+!gradle/wrapper/gradle-wrapper.jar
+
+# Android
+*.apk
+*.aar
+*.ap_
+*.aab
+
+# Local configuration file (sdk path, etc)
+local.properties
+
+# Generated files
+bin/
+gen/
+app/build/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+
+# Backup files
+*.bak
